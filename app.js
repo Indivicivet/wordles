@@ -392,6 +392,7 @@
       wordLength: wordLength,
       maxGuesses: maxGuesses,
       isCustom: isCustom,
+      customCipher: isCustom ? customCipher : null,
       targetWord: targetWord,
       guesses: [...guesses],
       evaluations: evals,
@@ -919,7 +920,54 @@
     }
   }
 
-  // --- Sharing & Clipboard Format ---
+  // --- Sharing & Link Helpers ---
+  function getShareableGameLink() {
+    const url = new URL(window.location.origin + window.location.pathname);
+    if (isCustom && customCipher) {
+      url.searchParams.set("c", customCipher);
+      if (maxGuesses !== DEFAULT_GUESSES) {
+        url.searchParams.set("tries", maxGuesses);
+      }
+    } else {
+      url.searchParams.set("d", puzzleDate);
+      url.searchParams.set("n", puzzleNumber);
+      if (wordLength !== DEFAULT_LENGTH) {
+        url.searchParams.set("len", wordLength);
+      }
+      if (maxGuesses !== DEFAULT_GUESSES) {
+        url.searchParams.set("tries", maxGuesses);
+      }
+    }
+    if (currentMode !== "wordle") {
+      url.searchParams.set("mode", currentMode);
+    }
+    return url.toString();
+  }
+
+  function getShareableLinkForLog(log) {
+    const url = new URL(window.location.origin + window.location.pathname);
+    if (log.isCustom) {
+      const cipher = log.customCipher || encryptCustomWord(log.targetWord, log.maxGuesses);
+      url.searchParams.set("c", cipher);
+      if (log.maxGuesses !== DEFAULT_GUESSES) {
+        url.searchParams.set("tries", log.maxGuesses);
+      }
+    } else {
+      url.searchParams.set("d", log.date);
+      url.searchParams.set("n", log.puzzleNumber);
+      if (log.wordLength !== DEFAULT_LENGTH) {
+        url.searchParams.set("len", log.wordLength);
+      }
+      if (log.maxGuesses !== DEFAULT_GUESSES) {
+        url.searchParams.set("tries", log.maxGuesses);
+      }
+    }
+    if (log.mode && log.mode !== "wordle") {
+      url.searchParams.set("mode", log.mode);
+    }
+    return url.toString();
+  }
+
   function generateShareText(won, moveCount) {
     let mark = "";
     let modeLabel = "";
@@ -942,13 +990,13 @@
       : `Wordles ${puzzleDate} #${puzzleNumber}${mark} (${modeLabel}${wordLength} letters, ${scoreStr})`;
 
     const grid = getEmojiGrid();
-    const link = window.location.href;
+    const link = getShareableGameLink();
 
     return `${header}\n${grid}\n${link}`;
   }
 
   function generatePreGameShareLink() {
-    return window.location.href;
+    return getShareableGameLink();
   }
 
   async function copyToClipboard(text, successMsg = "Copied to clipboard!") {
@@ -1149,7 +1197,8 @@
           const head = log.isCustom
             ? `Wordles Custom (${mLabel}${log.wordLength} letters, ${scoreStr})`
             : `Wordles ${log.date} #${log.puzzleNumber}${m} (${mLabel}${log.wordLength} letters, ${scoreStr})`;
-          copyToClipboard(`${head}\n${log.emojiGrid}`, "Copied past result to clipboard!");
+          const link = getShareableLinkForLog(log);
+          copyToClipboard(`${head}\n${log.emojiGrid}\n${link}`, "Copied past result to clipboard!");
         });
 
         listEl.appendChild(item);
