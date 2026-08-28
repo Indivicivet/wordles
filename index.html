@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Wordles</title>
+  <meta name="description" content="A customizable Wordle clone with variable word lengths, custom puzzles, daily seeds, and full stats logging.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="app-container">
+    <!-- Header -->
+    <header>
+      <div class="header-left">
+        <div class="mode-select-wrap">
+          <select id="mode-select" aria-label="Game Mode">
+            <option value="wordle" selected>Wordle</option>
+          </select>
+        </div>
+      </div>
+      <h1 class="app-title">Wordles</h1>
+      <div class="header-right">
+        <button id="btn-open-custom" class="icon-btn" title="Create Custom Wordle" aria-label="Create Custom Wordle">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 5v14M5 12h14"/>
+          </svg>
+        </button>
+        <button id="btn-open-history" class="icon-btn" title="Game History & Statistics" aria-label="Game History & Statistics">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 20V10M12 20V4M6 20v-6"/>
+          </svg>
+        </button>
+        <button id="theme-toggle-btn" class="icon-btn" title="Switch Theme" aria-label="Switch Theme">
+          &#9728;
+        </button>
+      </div>
+    </header>
+
+    <!-- Controls Bar -->
+    <div class="controls-bar">
+      <div class="control-row">
+        <!-- Word Length Selector -->
+        <div class="pill-group" id="length-pills">
+          <span class="pill-label">Len</span>
+          <button class="pill-btn" data-len="3">3</button>
+          <button class="pill-btn" data-len="4">4</button>
+          <button class="pill-btn active" data-len="5">5</button>
+          <button class="pill-btn" data-len="6">6</button>
+          <button class="pill-btn" data-len="7">7</button>
+        </div>
+
+        <!-- Guess Count Selector -->
+        <div class="pill-group" id="guess-pills">
+          <span class="pill-label">Tries</span>
+          <button class="pill-btn" data-tries="3">3</button>
+          <button class="pill-btn" data-tries="4">4</button>
+          <button class="pill-btn" data-tries="5">5</button>
+          <button class="pill-btn active" data-tries="6">6</button>
+          <button class="pill-btn" data-tries="7">7</button>
+          <button class="pill-btn" data-tries="8">8</button>
+        </div>
+      </div>
+
+      <div class="control-row">
+        <!-- Puzzle Navigation -->
+        <div class="puzzle-meta">
+          <button id="btn-prev-puzzle" class="nav-btn" title="Previous Puzzle">&larr;</button>
+          <span id="puzzle-badge" class="badge">2026-08-28 #1</span>
+          <button id="btn-next-puzzle" class="nav-btn" title="Next Puzzle">&rarr;</button>
+          <button id="btn-random-puzzle" class="nav-btn" title="Random Puzzle">&#127922; Random</button>
+        </div>
+
+        <!-- Pre-Game Share -->
+        <button id="btn-share-seed" class="nav-btn" title="Share link to this exact puzzle">
+          &#128279; Share Game
+        </button>
+      </div>
+    </div>
+
+    <!-- Game Board -->
+    <div id="board-container">
+      <div id="board"></div>
+    </div>
+
+    <!-- Virtual Keyboard -->
+    <div id="keyboard"></div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <!-- Result Modal -->
+  <div id="result-modal-overlay" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Game Result</h2>
+        <button id="result-modal-close" class="icon-btn" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="result-banner">
+          <h3 id="result-title">Victory!</h3>
+          <p id="result-subtitle">You solved the puzzle.</p>
+        </div>
+        <div class="secret-word-reveal" style="text-align: center;">
+          The word was: <span id="secret-word-display">APPLE</span>
+        </div>
+        <div id="result-emoji-preview" class="emoji-preview"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-copy-result" class="action-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          Share Result
+        </button>
+        <button id="btn-result-next" class="action-btn secondary">Next Puzzle &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Custom Puzzle Creator Modal -->
+  <div id="custom-modal-overlay" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Create Custom Wordle</h2>
+        <button id="custom-modal-close" class="icon-btn" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="custom-word-input">Secret Word (3 to 7 letters)</label>
+          <input id="custom-word-input" class="form-input" type="text" maxlength="7" placeholder="e.g. SECRET" autocomplete="off" autocorrect="off" spellcheck="false">
+        </div>
+        <div class="form-group">
+          <label for="custom-tries-select">Number of Guesses Allowed</label>
+          <select id="custom-tries-select" class="form-input" style="font-size: 14px;">
+            <option value="2">2 Guesses</option>
+            <option value="3">3 Guesses</option>
+            <option value="4">4 Guesses</option>
+            <option value="5">5 Guesses</option>
+            <option value="6" selected>6 Guesses (Standard)</option>
+            <option value="7">7 Guesses</option>
+            <option value="8">8 Guesses</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="custom-link-output">Encrypted Share Link</label>
+          <div class="custom-link-box">
+            <input id="custom-link-output" class="custom-link-input" type="text" readonly placeholder="Enter word above to generate link...">
+            <button id="btn-copy-custom-link" class="action-btn" title="Copy Encrypted Link">Copy</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-play-custom" class="action-btn">Play It Now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- History & Stats Modal -->
+  <div id="history-modal-overlay" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Statistics & Game Log</h2>
+        <button id="history-modal-close" class="icon-btn" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div id="stat-played" class="stat-number">0</div>
+            <div class="stat-label">Played</div>
+          </div>
+          <div class="stat-box">
+            <div id="stat-win-pct" class="stat-number">0%</div>
+            <div class="stat-label">Win %</div>
+          </div>
+          <div class="stat-box">
+            <div id="stat-current-streak" class="stat-number">0</div>
+            <div class="stat-label">Streak</div>
+          </div>
+          <div class="stat-box">
+            <div id="stat-max-streak" class="stat-number">0</div>
+            <div class="stat-label">Max Streak</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Game History (Click to copy result)</label>
+          <div id="history-items-list" class="history-list"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btn-download-json" class="action-btn secondary">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          Download JSON Log
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="words.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
