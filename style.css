@@ -222,6 +222,21 @@ h1.app-title {
   background-color: var(--btn-secondary-hover);
 }
 
+.nav-btn.danger {
+  background-color: #8b2626;
+  color: #ffffff;
+}
+
+.nav-btn.danger:hover {
+  background-color: #a83232;
+}
+
+.pill-btn:disabled, .nav-btn:disabled, select:disabled {
+  opacity: 0.4;
+  cursor: not-allowed !important;
+  pointer-events: none;
+}
+
 .hard-mode-wrap {
   display: inline-flex;
   align-items: center;
@@ -726,6 +741,11 @@ h1.app-title {
 
 .history-badge.loss {
   background-color: var(--tile-bg-absent);
+  color: #ffffff;
+}
+
+.history-badge.gave-up {
+  background-color: #8b2626;
   color: #ffffff;
 }
 

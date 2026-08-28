@@ -25,6 +25,7 @@
   let currentGuess = "";
   let isGameOver = false;
   let gameWon = false;
+  let gaveUp = false;
   let keyStates = {}; // char -> 'correct' | 'present' | 'absent'
   let isRevealing = false;
 
@@ -165,7 +166,7 @@
       const prev = prevGuesses[r];
       const evals = evaluateGuess(prev, target);
 
-      // 1. Exact matches (green) must be used in the same position
+      // 1. Exact matches (green) must be kept in the same position
       for (let i = 0; i < prev.length; i++) {
         if (evals[i] === "correct") {
           if (newGuess[i] !== prev[i]) {
@@ -177,7 +178,7 @@
         }
       }
 
-      // 2. Confirmed present letters (yellow & green) must be in new guess
+      // 2. Confirmed present letters (yellow & green) must appear in new guess
       const requiredCounts = {};
       for (let i = 0; i < prev.length; i++) {
         if (evals[i] === "correct" || evals[i] === "present") {
@@ -264,6 +265,7 @@
       id: gameId,
       mode: currentMode,
       hardMode: isHardMode,
+      gaveUp: gaveUp,
       date: puzzleDate,
       puzzleNumber: isCustom ? null : puzzleNumber,
       wordLength: wordLength,
@@ -290,6 +292,7 @@
   const themeToggleBtn = document.getElementById("theme-toggle-btn");
   const hardModeCheckbox = document.getElementById("hard-mode-checkbox");
   const hardModeWrap = document.getElementById("hard-mode-wrap");
+  const btnGiveUp = document.getElementById("btn-give-up");
 
   // Modals
   const resultModalOverlay = document.getElementById("result-modal-overlay");
@@ -490,11 +493,14 @@
   }
 
   function updateControlsUI() {
+    const gameInProgress = guesses.length > 0 && !isGameOver;
+
     // Update length pills
     const lenBtns = lengthPillsEl.querySelectorAll(".pill-btn");
     lenBtns.forEach((btn) => {
       const val = parseInt(btn.getAttribute("data-len"), 10);
       btn.classList.toggle("active", val === wordLength);
+      btn.disabled = gameInProgress;
     });
 
     // Update guess pills
@@ -502,7 +508,19 @@
     guessBtns.forEach((btn) => {
       const val = parseInt(btn.getAttribute("data-tries"), 10);
       btn.classList.toggle("active", val === maxGuesses);
+      btn.disabled = gameInProgress;
     });
+
+    // Disable navigation buttons during active game
+    const btnPrev = document.getElementById("btn-prev-puzzle");
+    const btnNext = document.getElementById("btn-next-puzzle");
+    const btnRandom = document.getElementById("btn-random-puzzle");
+    if (btnPrev) btnPrev.disabled = gameInProgress;
+    if (btnNext) btnNext.disabled = gameInProgress;
+    if (btnRandom) btnRandom.disabled = gameInProgress;
+
+    // Disable mode select during active game
+    if (modeSelectEl) modeSelectEl.disabled = gameInProgress;
 
     // Update puzzle badge
     const star = isHardMode ? "*" : "";
@@ -515,11 +533,15 @@
     // Hard mode toggle state
     if (hardModeCheckbox) {
       hardModeCheckbox.checked = isHardMode;
-      const gameInProgress = guesses.length > 0;
       hardModeCheckbox.disabled = gameInProgress;
       if (hardModeWrap) {
         hardModeWrap.classList.toggle("disabled", gameInProgress);
       }
+    }
+
+    // Give Up button visibility
+    if (btnGiveUp) {
+      btnGiveUp.style.display = gameInProgress ? "inline-flex" : "none";
     }
   }
 
@@ -550,6 +572,7 @@
     currentGuess = "";
     isGameOver = false;
     gameWon = false;
+    gaveUp = false;
     keyStates = {};
     isRevealing = false;
 
@@ -566,6 +589,19 @@
     updateURL();
     renderBoard();
     renderKeyboard();
+    updateControlsUI();
+  }
+
+  function giveUp() {
+    if (isGameOver || isRevealing || guesses.length === 0) return;
+
+    isGameOver = true;
+    gameWon = false;
+    gaveUp = true;
+
+    saveGameLog(createLogEntry());
+    openResultModal(false, true);
+    updateControlsUI();
   }
 
   function addLetter(letter) {
@@ -633,11 +669,8 @@
     guesses.push(guessToReveal);
     currentGuess = "";
 
-    // Lock hard mode toggle during the game
-    if (hardModeCheckbox) {
-      hardModeCheckbox.disabled = true;
-      if (hardModeWrap) hardModeWrap.classList.add("disabled");
-    }
+    // Lock all gameplay controls immediately
+    updateControlsUI();
 
     // Animate tile flips sequentially
     for (let c = 0; c < wordLength; c++) {
@@ -669,11 +702,13 @@
         gameWon = true;
         bounceRow(rowIdx);
         saveGameLog(createLogEntry());
+        updateControlsUI();
         setTimeout(() => openResultModal(true), 1200);
       } else if (guesses.length >= maxGuesses) {
         isGameOver = true;
         gameWon = false;
         saveGameLog(createLogEntry());
+        updateControlsUI();
         setTimeout(() => openResultModal(false), 1000);
       }
     }, totalRevealTime);
@@ -737,7 +772,13 @@
   // --- Sharing & Clipboard Format ---
   function generateShareText(won, moveCount) {
     const star = isHardMode ? "*" : "";
-    const scoreStr = won ? `${moveCount}/${maxGuesses}${star}` : `X/${maxGuesses}${star}`;
+    let scoreStr = "";
+    if (gaveUp) {
+      scoreStr = `Gave Up (${moveCount}/${maxGuesses}${star})`;
+    } else {
+      scoreStr = won ? `${moveCount}/${maxGuesses}${star}` : `X/${maxGuesses}${star}`;
+    }
+
     const header = isCustom
       ? `Wordles Custom (${wordLength} letters, ${scoreStr})`
       : `Wordles ${puzzleDate} #${puzzleNumber}${star} (${wordLength} letters, ${scoreStr})`;
@@ -783,13 +824,16 @@
   }
 
   // Result Modal
-  function openResultModal(won) {
+  function openResultModal(won, wasGivenUp = false) {
     const titleEl = document.getElementById("result-title");
     const subEl = document.getElementById("result-subtitle");
     const revealEl = document.getElementById("secret-word-display");
     const previewEl = document.getElementById("result-emoji-preview");
 
-    if (won) {
+    if (wasGivenUp) {
+      titleEl.textContent = "Gave Up";
+      subEl.textContent = `You surrendered this puzzle.`;
+    } else if (won) {
       titleEl.textContent = "Splendid!";
       subEl.textContent = `You solved it in ${guesses.length} / ${maxGuesses} guesses.`;
     } else {
@@ -905,9 +949,17 @@
         info.appendChild(sub);
 
         const badge = document.createElement("div");
-        badge.className = `history-badge ${log.won ? "win" : "loss"}`;
         const star = log.hardMode ? "*" : "";
-        badge.textContent = log.won ? `${log.moves}/${log.maxGuesses}${star}` : `X/${log.maxGuesses}${star}`;
+        if (log.gaveUp) {
+          badge.className = "history-badge gave-up";
+          badge.textContent = `Gave Up (${log.moves}/${log.maxGuesses}${star})`;
+        } else if (log.won) {
+          badge.className = "history-badge win";
+          badge.textContent = `${log.moves}/${log.maxGuesses}${star}`;
+        } else {
+          badge.className = "history-badge loss";
+          badge.textContent = `X/${log.maxGuesses}${star}`;
+        }
 
         item.appendChild(info);
         item.appendChild(badge);
@@ -916,7 +968,12 @@
         item.title = "Click to copy game result";
         item.addEventListener("click", () => {
           const star = log.hardMode ? "*" : "";
-          const scoreStr = log.won ? `${log.moves}/${log.maxGuesses}${star}` : `X/${log.maxGuesses}${star}`;
+          let scoreStr = "";
+          if (log.gaveUp) {
+            scoreStr = `Gave Up (${log.moves}/${log.maxGuesses}${star})`;
+          } else {
+            scoreStr = log.won ? `${log.moves}/${log.maxGuesses}${star}` : `X/${log.maxGuesses}${star}`;
+          }
           const head = log.isCustom
             ? `Wordles Custom (${log.wordLength} letters, ${scoreStr})`
             : `Wordles ${log.date} #${log.puzzleNumber}${star} (${log.wordLength} letters, ${scoreStr})`;
@@ -953,13 +1010,18 @@
     // Theme toggle
     themeToggleBtn.addEventListener("click", toggleTheme);
 
+    // Give Up button
+    if (btnGiveUp) {
+      btnGiveUp.addEventListener("click", giveUp);
+    }
+
     // Hard Mode Checkbox
     if (hardModeCheckbox) {
       hardModeCheckbox.addEventListener("change", (e) => {
-        if (guesses.length > 0) {
+        if (guesses.length > 0 && !isGameOver) {
           e.preventDefault();
           hardModeCheckbox.checked = isHardMode;
-          showToast("Hard mode cannot be disabled mid-game");
+          showToast("Hard mode cannot be changed mid-game");
           return;
         }
         isHardMode = e.target.checked;
@@ -970,6 +1032,10 @@
 
     // Length pills
     lengthPillsEl.addEventListener("click", (e) => {
+      if (guesses.length > 0 && !isGameOver) {
+        showToast("Cannot change word length during a game");
+        return;
+      }
       if (e.target.classList.contains("pill-btn")) {
         const newLen = parseInt(e.target.getAttribute("data-len"), 10);
         if (newLen !== wordLength) {
@@ -982,6 +1048,10 @@
 
     // Guess count pills
     guessPillsEl.addEventListener("click", (e) => {
+      if (guesses.length > 0 && !isGameOver) {
+        showToast("Cannot change guess allowance during a game");
+        return;
+      }
       if (e.target.classList.contains("pill-btn")) {
         const newTries = parseInt(e.target.getAttribute("data-tries"), 10);
         if (newTries !== maxGuesses) {
@@ -993,6 +1063,10 @@
 
     // Navigation buttons
     document.getElementById("btn-prev-puzzle").addEventListener("click", () => {
+      if (guesses.length > 0 && !isGameOver) {
+        showToast("Game in progress. Finish or Give Up first.");
+        return;
+      }
       if (puzzleNumber > 1) {
         puzzleNumber--;
         isCustom = false;
@@ -1001,12 +1075,20 @@
     });
 
     document.getElementById("btn-next-puzzle").addEventListener("click", () => {
+      if (guesses.length > 0 && !isGameOver) {
+        showToast("Game in progress. Finish or Give Up first.");
+        return;
+      }
       puzzleNumber++;
       isCustom = false;
       startNewGame();
     });
 
     document.getElementById("btn-random-puzzle").addEventListener("click", () => {
+      if (guesses.length > 0 && !isGameOver) {
+        showToast("Game in progress. Finish or Give Up first.");
+        return;
+      }
       puzzleNumber = Math.floor(Math.random() * 500) + 1;
       isCustom = false;
       startNewGame();
@@ -1019,6 +1101,11 @@
 
     // Mode Selector
     modeSelectEl.addEventListener("change", (e) => {
+      if (guesses.length > 0 && !isGameOver) {
+        e.target.value = currentMode;
+        showToast("Cannot change mode during a game");
+        return;
+      }
       currentMode = e.target.value;
       startNewGame();
     });
