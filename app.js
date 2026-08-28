@@ -8,6 +8,7 @@
   const DEFAULT_GUESSES = 6;
   const STORAGE_PREFIX = "wordles_log_";
   const THEME_KEY = "wordles_theme";
+  const HARD_MODE_KEY = "wordles_hard_mode";
 
   // --- State Variables ---
   let currentMode = "wordle";
@@ -18,6 +19,7 @@
   let isCustom = false;
   let targetWord = "";
   let customCipher = "";
+  let isHardMode = localStorage.getItem(HARD_MODE_KEY) === "true";
 
   let guesses = [];
   let currentGuess = "";
@@ -60,8 +62,13 @@
     return list[index];
   }
 
+  function getOrdinal(n) {
+    const s = ["th", "st", "nd", "rd"];
+    const v = n % 100;
+    return n + (s[(v - 20) % 10] || s[v] || s[0]);
+  }
+
   // --- Custom Word Encryption / Decryption ---
-  // Lightweight rolling XOR + permutation + URL-safe Base64
   const CIPHER_SALT = 0x6e;
 
   function encryptCustomWord(word, tries) {
@@ -79,7 +86,6 @@
       rollingKey = (rollingKey * 37 + (i + 1) * 13) & 0xff;
     }
 
-    // Convert bytes to URL-safe Base64 string
     const binary = String.fromCharCode(...bytes);
     const b64 = btoa(binary)
       .replace(/\+/g, "-")
@@ -121,7 +127,6 @@
   }
 
   // --- Evaluation Logic ---
-  // Standard two-pass duplicate letter matching
   function evaluateGuess(guess, target) {
     const len = target.length;
     const result = new Array(len).fill("absent");
@@ -152,6 +157,52 @@
     }
 
     return result;
+  }
+
+  // Hard Mode Validator
+  function validateHardMode(newGuess, prevGuesses, target) {
+    for (let r = 0; r < prevGuesses.length; r++) {
+      const prev = prevGuesses[r];
+      const evals = evaluateGuess(prev, target);
+
+      // 1. Exact matches (green) must be used in the same position
+      for (let i = 0; i < prev.length; i++) {
+        if (evals[i] === "correct") {
+          if (newGuess[i] !== prev[i]) {
+            return {
+              valid: false,
+              message: `${getOrdinal(i + 1)} letter must be ${prev[i]}`,
+            };
+          }
+        }
+      }
+
+      // 2. Confirmed present letters (yellow & green) must be in new guess
+      const requiredCounts = {};
+      for (let i = 0; i < prev.length; i++) {
+        if (evals[i] === "correct" || evals[i] === "present") {
+          const char = prev[i];
+          requiredCounts[char] = (requiredCounts[char] || 0) + 1;
+        }
+      }
+
+      const newCounts = {};
+      for (let i = 0; i < newGuess.length; i++) {
+        const char = newGuess[i];
+        newCounts[char] = (newCounts[char] || 0) + 1;
+      }
+
+      for (const char in requiredCounts) {
+        if ((newCounts[char] || 0) < requiredCounts[char]) {
+          return {
+            valid: false,
+            message: `Guess must contain ${char}`,
+          };
+        }
+      }
+    }
+
+    return { valid: true };
   }
 
   function getEmojiRow(evaluations) {
@@ -189,7 +240,6 @@
 
   function saveGameLog(logEntry) {
     const logs = loadGameLogs(currentMode);
-    // Check if this specific game was already logged to prevent duplicates
     const existingIndex = logs.findIndex((item) => item.id === logEntry.id);
     if (existingIndex >= 0) {
       logs[existingIndex] = logEntry;
@@ -205,14 +255,15 @@
 
   function createLogEntry() {
     const gameId = isCustom
-      ? `custom-${customCipher}-L${wordLength}-G${maxGuesses}`
-      : `${puzzleDate}#${puzzleNumber}-L${wordLength}-G${maxGuesses}`;
+      ? `custom-${customCipher}-L${wordLength}-G${maxGuesses}${isHardMode ? "-H" : ""}`
+      : `${puzzleDate}#${puzzleNumber}-L${wordLength}-G${maxGuesses}${isHardMode ? "-H" : ""}`;
 
     const evals = guesses.map((g) => evaluateGuess(g, targetWord));
 
     return {
       id: gameId,
       mode: currentMode,
+      hardMode: isHardMode,
       date: puzzleDate,
       puzzleNumber: isCustom ? null : puzzleNumber,
       wordLength: wordLength,
@@ -237,6 +288,8 @@
   const puzzleBadgeEl = document.getElementById("puzzle-badge");
   const toastContainerEl = document.getElementById("toast-container");
   const themeToggleBtn = document.getElementById("theme-toggle-btn");
+  const hardModeCheckbox = document.getElementById("hard-mode-checkbox");
+  const hardModeWrap = document.getElementById("hard-mode-wrap");
 
   // Modals
   const resultModalOverlay = document.getElementById("result-modal-overlay");
@@ -261,11 +314,11 @@
     const saved = localStorage.getItem(THEME_KEY);
     if (saved === "light") {
       document.body.classList.add("light-theme");
-      themeToggleBtn.innerHTML = "&#9790;"; // Moon icon for lights off
+      themeToggleBtn.innerHTML = "&#9790;";
       themeToggleBtn.title = "Switch to Dark Theme";
     } else {
       document.body.classList.remove("light-theme");
-      themeToggleBtn.innerHTML = "&#9728;"; // Sun icon for lights on
+      themeToggleBtn.innerHTML = "&#9728;";
       themeToggleBtn.title = "Switch to Light Theme";
     }
   }
@@ -452,10 +505,21 @@
     });
 
     // Update puzzle badge
+    const star = isHardMode ? "*" : "";
     if (isCustom) {
-      puzzleBadgeEl.textContent = `Custom (${wordLength}L)`;
+      puzzleBadgeEl.textContent = `Custom (${wordLength}L)${star}`;
     } else {
-      puzzleBadgeEl.textContent = `${puzzleDate} #${puzzleNumber}`;
+      puzzleBadgeEl.textContent = `${puzzleDate} #${puzzleNumber}${star}`;
+    }
+
+    // Hard mode toggle state
+    if (hardModeCheckbox) {
+      hardModeCheckbox.checked = isHardMode;
+      const gameInProgress = guesses.length > 0;
+      hardModeCheckbox.disabled = gameInProgress;
+      if (hardModeWrap) {
+        hardModeWrap.classList.toggle("disabled", gameInProgress);
+      }
     }
   }
 
@@ -491,6 +555,12 @@
 
     if (!isCustom) {
       targetWord = selectTargetWord(puzzleDate, puzzleNumber, wordLength);
+    }
+
+    if (hardModeCheckbox) {
+      hardModeCheckbox.checked = isHardMode;
+      hardModeCheckbox.disabled = false;
+      if (hardModeWrap) hardModeWrap.classList.remove("disabled");
     }
 
     updateURL();
@@ -545,6 +615,16 @@
       return;
     }
 
+    // Hard Mode Check
+    if (isHardMode && guesses.length > 0) {
+      const hardCheck = validateHardMode(currentGuess, guesses, targetWord);
+      if (!hardCheck.valid) {
+        showToast(hardCheck.message);
+        shakeRow(guesses.length);
+        return;
+      }
+    }
+
     const rowIdx = guesses.length;
     const guessToReveal = currentGuess;
     const evaluations = evaluateGuess(guessToReveal, targetWord);
@@ -552,6 +632,12 @@
     isRevealing = true;
     guesses.push(guessToReveal);
     currentGuess = "";
+
+    // Lock hard mode toggle during the game
+    if (hardModeCheckbox) {
+      hardModeCheckbox.disabled = true;
+      if (hardModeWrap) hardModeWrap.classList.add("disabled");
+    }
 
     // Animate tile flips sequentially
     for (let c = 0; c < wordLength; c++) {
@@ -579,14 +665,12 @@
       recalculateKeyStates();
 
       if (guessToReveal === targetWord) {
-        // Victory!
         isGameOver = true;
         gameWon = true;
         bounceRow(rowIdx);
         saveGameLog(createLogEntry());
         setTimeout(() => openResultModal(true), 1200);
       } else if (guesses.length >= maxGuesses) {
-        // Loss!
         isGameOver = true;
         gameWon = false;
         saveGameLog(createLogEntry());
@@ -599,7 +683,7 @@
     const rowEl = document.getElementById(`row-${rowIdx}`);
     if (rowEl) {
       rowEl.classList.remove("shake");
-      void rowEl.offsetWidth; // Trigger reflow
+      void rowEl.offsetWidth;
       rowEl.classList.add("shake");
     }
   }
@@ -630,12 +714,10 @@
   }
 
   function handlePhysicalKeyDown(e) {
-    // Ignore keystrokes when typing into modal inputs
     if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA" || e.target.tagName === "SELECT") {
       return;
     }
 
-    // Ignore if modal is open and key is not Escape
     if (isAnyModalOpen()) {
       if (e.key === "Escape") {
         closeAllModals();
@@ -654,10 +736,11 @@
 
   // --- Sharing & Clipboard Format ---
   function generateShareText(won, moveCount) {
-    const scoreStr = won ? `${moveCount}/${maxGuesses}` : `X/${maxGuesses}`;
+    const star = isHardMode ? "*" : "";
+    const scoreStr = won ? `${moveCount}/${maxGuesses}${star}` : `X/${maxGuesses}${star}`;
     const header = isCustom
       ? `Wordles Custom (${wordLength} letters, ${scoreStr})`
-      : `Wordles ${puzzleDate} #${puzzleNumber} (${wordLength} letters, ${scoreStr})`;
+      : `Wordles ${puzzleDate} #${puzzleNumber}${star} (${wordLength} letters, ${scoreStr})`;
 
     const grid = getEmojiGrid();
     const link = window.location.href;
@@ -674,7 +757,6 @@
       await navigator.clipboard.writeText(text);
       showToast(successMsg);
     } catch (err) {
-      // Fallback for older browsers
       const textarea = document.createElement("textarea");
       textarea.value = text;
       document.body.appendChild(textarea);
@@ -760,7 +842,6 @@
   function openHistoryModal() {
     const logs = loadGameLogs(currentMode);
 
-    // Compute Stats
     const totalPlayed = logs.length;
     const wins = logs.filter((l) => l.won).length;
     const winPct = totalPlayed > 0 ? Math.round((wins / totalPlayed) * 100) : 0;
@@ -769,7 +850,6 @@
     let maxStreak = 0;
     let tempStreak = 0;
 
-    // Logs are in descending timestamp order
     for (let i = logs.length - 1; i >= 0; i--) {
       if (logs[i].won) {
         tempStreak++;
@@ -778,7 +858,6 @@
         tempStreak = 0;
       }
     }
-    // Current streak counts backwards from most recent
     for (let i = 0; i < logs.length; i++) {
       if (logs[i].won) {
         currentStreak++;
@@ -792,7 +871,6 @@
     document.getElementById("stat-current-streak").textContent = currentStreak;
     document.getElementById("stat-max-streak").textContent = maxStreak;
 
-    // Render History List
     const listEl = document.getElementById("history-items-list");
     listEl.innerHTML = "";
 
@@ -808,9 +886,10 @@
 
         const title = document.createElement("div");
         title.className = "history-title";
-        title.textContent = log.isCustom
+        const hardTag = log.hardMode ? ` <span class="hard-mode-tag">★ Hard</span>` : "";
+        title.innerHTML = (log.isCustom
           ? `Custom (${log.wordLength} letters)`
-          : `${log.date} #${log.puzzleNumber} (${log.wordLength}L)`;
+          : `${log.date} #${log.puzzleNumber} (${log.wordLength}L)`) + hardTag;
 
         const sub = document.createElement("div");
         sub.className = "history-sub";
@@ -827,19 +906,20 @@
 
         const badge = document.createElement("div");
         badge.className = `history-badge ${log.won ? "win" : "loss"}`;
-        badge.textContent = log.won ? `${log.moves}/${log.maxGuesses}` : `X/${log.maxGuesses}`;
+        const star = log.hardMode ? "*" : "";
+        badge.textContent = log.won ? `${log.moves}/${log.maxGuesses}${star}` : `X/${log.maxGuesses}${star}`;
 
         item.appendChild(info);
         item.appendChild(badge);
 
-        // Clicking item copies its emoji result
         item.style.cursor = "pointer";
         item.title = "Click to copy game result";
         item.addEventListener("click", () => {
-          const scoreStr = log.won ? `${log.moves}/${log.maxGuesses}` : `X/${log.maxGuesses}`;
+          const star = log.hardMode ? "*" : "";
+          const scoreStr = log.won ? `${log.moves}/${log.maxGuesses}${star}` : `X/${log.maxGuesses}${star}`;
           const head = log.isCustom
             ? `Wordles Custom (${log.wordLength} letters, ${scoreStr})`
-            : `Wordles ${log.date} #${log.puzzleNumber} (${log.wordLength} letters, ${scoreStr})`;
+            : `Wordles ${log.date} #${log.puzzleNumber}${star} (${log.wordLength} letters, ${scoreStr})`;
           copyToClipboard(`${head}\n${log.emojiGrid}`, "Copied past result to clipboard!");
         });
 
@@ -872,6 +952,21 @@
 
     // Theme toggle
     themeToggleBtn.addEventListener("click", toggleTheme);
+
+    // Hard Mode Checkbox
+    if (hardModeCheckbox) {
+      hardModeCheckbox.addEventListener("change", (e) => {
+        if (guesses.length > 0) {
+          e.preventDefault();
+          hardModeCheckbox.checked = isHardMode;
+          showToast("Hard mode cannot be disabled mid-game");
+          return;
+        }
+        isHardMode = e.target.checked;
+        localStorage.setItem(HARD_MODE_KEY, isHardMode ? "true" : "false");
+        updateControlsUI();
+      });
+    }
 
     // Length pills
     lengthPillsEl.addEventListener("click", (e) => {
