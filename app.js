@@ -9,6 +9,7 @@
   const STORAGE_PREFIX = "wordles_log_";
   const THEME_KEY = "wordles_theme";
   const HARD_MODE_KEY = "wordles_hard_mode";
+  const STRICT_MODE_KEY = "wordles_strict_mode";
 
   // --- State Variables ---
   let currentMode = "wordle";
@@ -20,6 +21,7 @@
   let targetWord = "";
   let customCipher = "";
   let isHardMode = localStorage.getItem(HARD_MODE_KEY) === "true";
+  let isStrictMode = localStorage.getItem(STRICT_MODE_KEY) === "true";
 
   let guesses = [];
   let currentGuess = "";
@@ -160,7 +162,7 @@
     return result;
   }
 
-  // Hard Mode Validator
+  // --- Hard Mode Validator (Positive constraints only) ---
   function validateHardMode(newGuess, prevGuesses, target) {
     for (let r = 0; r < prevGuesses.length; r++) {
       const prev = prevGuesses[r];
@@ -200,6 +202,120 @@
             message: `Guess must contain ${char}`,
           };
         }
+      }
+    }
+
+    return { valid: true };
+  }
+
+  // --- Strict Mode Validator (Exhaustive consistency check) ---
+  function validateStrictMode(newGuess, prevGuesses, target) {
+    const wordLen = target.length;
+    const greens = new Array(wordLen).fill(null);
+    const forbiddenAtSlot = Array.from({ length: wordLen }, () => new Set());
+    const minCounts = {};
+    const exactCounts = {};
+
+    for (let r = 0; r < prevGuesses.length; r++) {
+      const prev = prevGuesses[r];
+      const evals = evaluateGuess(prev, target);
+
+      const guessCharPos = {};
+      const guessCharTotal = {};
+      const hasGrayForChar = {};
+
+      for (let i = 0; i < wordLen; i++) {
+        const char = prev[i];
+        const st = evals[i];
+        guessCharTotal[char] = (guessCharTotal[char] || 0) + 1;
+
+        if (st === "correct") {
+          greens[i] = char;
+          guessCharPos[char] = (guessCharPos[char] || 0) + 1;
+        } else if (st === "present") {
+          forbiddenAtSlot[i].add(char);
+          guessCharPos[char] = (guessCharPos[char] || 0) + 1;
+        } else if (st === "absent") {
+          forbiddenAtSlot[i].add(char);
+          hasGrayForChar[char] = true;
+        }
+      }
+
+      for (const char in guessCharTotal) {
+        const pos = guessCharPos[char] || 0;
+        minCounts[char] = Math.max(minCounts[char] || 0, pos);
+        if (hasGrayForChar[char]) {
+          exactCounts[char] = pos;
+        }
+      }
+    }
+
+    // 1. Check exact green matches
+    for (let i = 0; i < wordLen; i++) {
+      if (greens[i] !== null && newGuess[i] !== greens[i]) {
+        return {
+          valid: false,
+          message: `${getOrdinal(i + 1)} letter must be ${greens[i]}`,
+        };
+      }
+    }
+
+    // 2. Check forbidden slots (yellows & grays in that specific position)
+    for (let i = 0; i < wordLen; i++) {
+      const char = newGuess[i];
+      if (forbiddenAtSlot[i].has(char)) {
+        if (exactCounts[char] === 0) {
+          return {
+            valid: false,
+            message: `${char} is not in the word`,
+          };
+        } else {
+          return {
+            valid: false,
+            message: `${getOrdinal(i + 1)} letter cannot be ${char}`,
+          };
+        }
+      }
+    }
+
+    // Count letters in newGuess
+    const newCounts = {};
+    for (let i = 0; i < wordLen; i++) {
+      const char = newGuess[i];
+      newCounts[char] = (newCounts[char] || 0) + 1;
+    }
+
+    // 3. Forbid letters confirmed completely absent
+    for (const char in newCounts) {
+      if (exactCounts[char] === 0) {
+        return {
+          valid: false,
+          message: `${char} is not in the word`,
+        };
+      }
+    }
+
+    // 4. Check minimum letter counts
+    for (const char in minCounts) {
+      if ((newCounts[char] || 0) < minCounts[char]) {
+        const needed = minCounts[char];
+        return {
+          valid: false,
+          message: needed > 1
+            ? `Guess must contain at least ${needed} ${char}'s`
+            : `Guess must contain ${char}`,
+        };
+      }
+    }
+
+    // 5. Forbid exceeding confirmed exact counts
+    for (const char in exactCounts) {
+      if (exactCounts[char] > 0 && (newCounts[char] || 0) > exactCounts[char]) {
+        const maxAllowed = exactCounts[char];
+        return {
+          valid: false,
+          message: `Word contains only ${maxAllowed} ${char}${maxAllowed > 1 ? "'s" : ""}`,
+        };
       }
     }
 
@@ -255,9 +371,13 @@
   }
 
   function createLogEntry() {
+    let modeSuffix = "";
+    if (isStrictMode) modeSuffix = "-S";
+    else if (isHardMode) modeSuffix = "-H";
+
     const gameId = isCustom
-      ? `custom-${customCipher}-L${wordLength}-G${maxGuesses}${isHardMode ? "-H" : ""}`
-      : `${puzzleDate}#${puzzleNumber}-L${wordLength}-G${maxGuesses}${isHardMode ? "-H" : ""}`;
+      ? `custom-${customCipher}-L${wordLength}-G${maxGuesses}${modeSuffix}`
+      : `${puzzleDate}#${puzzleNumber}-L${wordLength}-G${maxGuesses}${modeSuffix}`;
 
     const evals = guesses.map((g) => evaluateGuess(g, targetWord));
 
@@ -265,6 +385,7 @@
       id: gameId,
       mode: currentMode,
       hardMode: isHardMode,
+      strictMode: isStrictMode,
       gaveUp: gaveUp,
       date: puzzleDate,
       puzzleNumber: isCustom ? null : puzzleNumber,
@@ -292,6 +413,8 @@
   const themeToggleBtn = document.getElementById("theme-toggle-btn");
   const hardModeCheckbox = document.getElementById("hard-mode-checkbox");
   const hardModeWrap = document.getElementById("hard-mode-wrap");
+  const strictModeCheckbox = document.getElementById("strict-mode-checkbox");
+  const strictModeWrap = document.getElementById("strict-mode-wrap");
   const btnGiveUp = document.getElementById("btn-give-up");
 
   // Modals
@@ -523,11 +646,14 @@
     if (modeSelectEl) modeSelectEl.disabled = gameInProgress;
 
     // Update puzzle badge
-    const star = isHardMode ? "*" : "";
+    let mark = "";
+    if (isStrictMode) mark = "†";
+    else if (isHardMode) mark = "*";
+
     if (isCustom) {
-      puzzleBadgeEl.textContent = `Custom (${wordLength}L)${star}`;
+      puzzleBadgeEl.textContent = `Custom (${wordLength}L)${mark}`;
     } else {
-      puzzleBadgeEl.textContent = `${puzzleDate} #${puzzleNumber}${star}`;
+      puzzleBadgeEl.textContent = `${puzzleDate} #${puzzleNumber}${mark}`;
     }
 
     // Hard mode toggle state
@@ -536,6 +662,15 @@
       hardModeCheckbox.disabled = gameInProgress;
       if (hardModeWrap) {
         hardModeWrap.classList.toggle("disabled", gameInProgress);
+      }
+    }
+
+    // Strict mode toggle state
+    if (strictModeCheckbox) {
+      strictModeCheckbox.checked = isStrictMode;
+      strictModeCheckbox.disabled = gameInProgress;
+      if (strictModeWrap) {
+        strictModeWrap.classList.toggle("disabled", gameInProgress);
       }
     }
 
@@ -584,6 +719,12 @@
       hardModeCheckbox.checked = isHardMode;
       hardModeCheckbox.disabled = false;
       if (hardModeWrap) hardModeWrap.classList.remove("disabled");
+    }
+
+    if (strictModeCheckbox) {
+      strictModeCheckbox.checked = isStrictMode;
+      strictModeCheckbox.disabled = false;
+      if (strictModeWrap) strictModeWrap.classList.remove("disabled");
     }
 
     updateURL();
@@ -651,13 +792,22 @@
       return;
     }
 
-    // Hard Mode Check
-    if (isHardMode && guesses.length > 0) {
-      const hardCheck = validateHardMode(currentGuess, guesses, targetWord);
-      if (!hardCheck.valid) {
-        showToast(hardCheck.message);
-        shakeRow(guesses.length);
-        return;
+    // Constraint validation: Strict Mode or Hard Mode
+    if (guesses.length > 0) {
+      if (isStrictMode) {
+        const strictCheck = validateStrictMode(currentGuess, guesses, targetWord);
+        if (!strictCheck.valid) {
+          showToast(strictCheck.message);
+          shakeRow(guesses.length);
+          return;
+        }
+      } else if (isHardMode) {
+        const hardCheck = validateHardMode(currentGuess, guesses, targetWord);
+        if (!hardCheck.valid) {
+          showToast(hardCheck.message);
+          shakeRow(guesses.length);
+          return;
+        }
       }
     }
 
@@ -771,17 +921,25 @@
 
   // --- Sharing & Clipboard Format ---
   function generateShareText(won, moveCount) {
-    const star = isHardMode ? "*" : "";
+    let mark = "";
+    let modeLabel = "";
+    if (isStrictMode) {
+      mark = "†";
+      modeLabel = "Strict, ";
+    } else if (isHardMode) {
+      mark = "*";
+    }
+
     let scoreStr = "";
     if (gaveUp) {
-      scoreStr = `Gave Up (${moveCount}/${maxGuesses}${star})`;
+      scoreStr = `Gave Up (${moveCount}/${maxGuesses}${mark})`;
     } else {
-      scoreStr = won ? `${moveCount}/${maxGuesses}${star}` : `X/${maxGuesses}${star}`;
+      scoreStr = won ? `${moveCount}/${maxGuesses}${mark}` : `X/${maxGuesses}${mark}`;
     }
 
     const header = isCustom
-      ? `Wordles Custom (${wordLength} letters, ${scoreStr})`
-      : `Wordles ${puzzleDate} #${puzzleNumber}${star} (${wordLength} letters, ${scoreStr})`;
+      ? `Wordles Custom (${modeLabel}${wordLength} letters, ${scoreStr})`
+      : `Wordles ${puzzleDate} #${puzzleNumber}${mark} (${modeLabel}${wordLength} letters, ${scoreStr})`;
 
     const grid = getEmojiGrid();
     const link = window.location.href;
@@ -930,10 +1088,14 @@
 
         const title = document.createElement("div");
         title.className = "history-title";
-        const hardTag = log.hardMode ? ` <span class="hard-mode-tag">★ Hard</span>` : "";
+
+        let modeTag = "";
+        if (log.strictMode) modeTag = ` <span class="strict-mode-tag">★ Strict</span>`;
+        else if (log.hardMode) modeTag = ` <span class="hard-mode-tag">★ Hard</span>`;
+
         title.innerHTML = (log.isCustom
           ? `Custom (${log.wordLength} letters)`
-          : `${log.date} #${log.puzzleNumber} (${log.wordLength}L)`) + hardTag;
+          : `${log.date} #${log.puzzleNumber} (${log.wordLength}L)`) + modeTag;
 
         const sub = document.createElement("div");
         sub.className = "history-sub";
@@ -949,16 +1111,19 @@
         info.appendChild(sub);
 
         const badge = document.createElement("div");
-        const star = log.hardMode ? "*" : "";
+        let mark = "";
+        if (log.strictMode) mark = "†";
+        else if (log.hardMode) mark = "*";
+
         if (log.gaveUp) {
           badge.className = "history-badge gave-up";
-          badge.textContent = `Gave Up (${log.moves}/${log.maxGuesses}${star})`;
+          badge.textContent = `Gave Up (${log.moves}/${log.maxGuesses}${mark})`;
         } else if (log.won) {
           badge.className = "history-badge win";
-          badge.textContent = `${log.moves}/${log.maxGuesses}${star}`;
+          badge.textContent = `${log.moves}/${log.maxGuesses}${mark}`;
         } else {
           badge.className = "history-badge loss";
-          badge.textContent = `X/${log.maxGuesses}${star}`;
+          badge.textContent = `X/${log.maxGuesses}${mark}`;
         }
 
         item.appendChild(info);
@@ -967,16 +1132,23 @@
         item.style.cursor = "pointer";
         item.title = "Click to copy game result";
         item.addEventListener("click", () => {
-          const star = log.hardMode ? "*" : "";
+          let m = "";
+          let mLabel = "";
+          if (log.strictMode) {
+            m = "†";
+            mLabel = "Strict, ";
+          } else if (log.hardMode) {
+            m = "*";
+          }
           let scoreStr = "";
           if (log.gaveUp) {
-            scoreStr = `Gave Up (${log.moves}/${log.maxGuesses}${star})`;
+            scoreStr = `Gave Up (${log.moves}/${log.maxGuesses}${m})`;
           } else {
-            scoreStr = log.won ? `${log.moves}/${log.maxGuesses}${star}` : `X/${log.maxGuesses}${star}`;
+            scoreStr = log.won ? `${log.moves}/${log.maxGuesses}${m}` : `X/${log.maxGuesses}${m}`;
           }
           const head = log.isCustom
-            ? `Wordles Custom (${log.wordLength} letters, ${scoreStr})`
-            : `Wordles ${log.date} #${log.puzzleNumber}${star} (${log.wordLength} letters, ${scoreStr})`;
+            ? `Wordles Custom (${mLabel}${log.wordLength} letters, ${scoreStr})`
+            : `Wordles ${log.date} #${log.puzzleNumber}${m} (${mLabel}${log.wordLength} letters, ${scoreStr})`;
           copyToClipboard(`${head}\n${log.emojiGrid}`, "Copied past result to clipboard!");
         });
 
@@ -1026,6 +1198,21 @@
         }
         isHardMode = e.target.checked;
         localStorage.setItem(HARD_MODE_KEY, isHardMode ? "true" : "false");
+        updateControlsUI();
+      });
+    }
+
+    // Strict Mode Checkbox
+    if (strictModeCheckbox) {
+      strictModeCheckbox.addEventListener("change", (e) => {
+        if (guesses.length > 0 && !isGameOver) {
+          e.preventDefault();
+          strictModeCheckbox.checked = isStrictMode;
+          showToast("Strict mode cannot be changed mid-game");
+          return;
+        }
+        isStrictMode = e.target.checked;
+        localStorage.setItem(STRICT_MODE_KEY, isStrictMode ? "true" : "false");
         updateControlsUI();
       });
     }
