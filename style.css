@@ -1,4 +1,4 @@
-/* Wordles - GitHub Pages Wordle Clone Stylesheet */
+/* Wordles - GitHub Pages Wordle Clone Stylesheet (Scaled ~25% Up) */
 
 :root {
   --bg-color: #121213;
@@ -25,7 +25,7 @@
   --btn-secondary-hover: #3a3a3c;
   --toast-bg: #ffffff;
   --toast-text: #121213;
-  --shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  --shadow: 0 12px 30px rgba(0, 0, 0, 0.55);
 }
 
 body.light-theme {
@@ -53,7 +53,7 @@ body.light-theme {
   --btn-secondary-hover: #cbd5e1;
   --toast-bg: #121213;
   --toast-text: #ffffff;
-  --shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  --shadow: 0 12px 30px rgba(0, 0, 0, 0.18);
 }
 
 * {
@@ -68,24 +68,23 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   background-color: var(--bg-color);
   color: var(--text-color);
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  padding: 16px 12px 36px 12px;
   overflow-x: hidden;
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 #app-container {
   width: 100%;
-  max-width: 540px;
-  height: 100%;
+  max-width: 620px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 8px;
+  gap: 14px;
 }
 
 /* Header */
@@ -94,18 +93,18 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 0;
+  padding: 6px 0 12px 0;
   border-bottom: 1px solid var(--header-border);
 }
 
 .header-left, .header-right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 h1.app-title {
-  font-size: 24px;
+  font-size: 30px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -115,9 +114,9 @@ h1.app-title {
   background-color: var(--pill-bg);
   color: var(--text-color);
   border: 1px solid var(--tile-border-empty);
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 13px;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 15px;
   font-weight: 600;
   outline: none;
   cursor: pointer;
@@ -128,12 +127,12 @@ h1.app-title {
   border: none;
   color: var(--text-color);
   cursor: pointer;
-  padding: 6px;
-  border-radius: 6px;
+  padding: 8px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 22px;
   transition: background-color 0.15s ease;
 }
 
@@ -146,42 +145,42 @@ h1.app-title {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 6px 0;
+  gap: 10px;
+  padding: 4px 0 8px 0;
 }
 
 .control-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
 }
 
 .pill-group {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   background-color: var(--pill-bg);
-  padding: 3px;
-  border-radius: 8px;
+  padding: 4px;
+  border-radius: 10px;
 }
 
 .pill-label {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   text-transform: uppercase;
   color: var(--text-muted);
-  padding-left: 4px;
+  padding-left: 6px;
 }
 
 .pill-btn {
   background: none;
   border: none;
   color: var(--text-color);
-  font-size: 12px;
+  font-size: 15px;
   font-weight: 700;
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 4px 10px;
+  border-radius: 7px;
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
@@ -194,25 +193,26 @@ h1.app-title {
 .puzzle-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
+  gap: 8px;
+  font-size: 15px;
   font-weight: 600;
 }
 
 .badge {
   background-color: var(--pill-bg);
-  padding: 3px 8px;
-  border-radius: 6px;
+  padding: 5px 10px;
+  border-radius: 8px;
   color: var(--text-color);
+  font-size: 14px;
 }
 
 .nav-btn {
   background-color: var(--btn-secondary-bg);
   color: var(--text-color);
   border: none;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 14px;
   font-weight: 600;
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -225,39 +225,58 @@ h1.app-title {
 /* Game Board */
 #board-container {
   display: flex;
-  align-items: center;
   justify-content: center;
-  flex-grow: 1;
+  align-items: center;
   width: 100%;
-  padding: 4px 0;
-  overflow: hidden;
+  padding: 8px 0 16px 0;
 }
 
 #board {
-  display: grid;
-  gap: 5px;
-  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  --tile-size: 74px;
+}
+
+#board[data-len="3"] {
+  --tile-size: min(76px, calc((100vw - 36px) / 3.4));
+}
+#board[data-len="4"] {
+  --tile-size: min(76px, calc((100vw - 36px) / 4.4));
+}
+#board[data-len="5"] {
+  --tile-size: min(74px, calc((100vw - 36px) / 5.4));
+}
+#board[data-len="6"] {
+  --tile-size: min(64px, calc((100vw - 36px) / 6.4));
+}
+#board[data-len="7"] {
+  --tile-size: min(56px, calc((100vw - 36px) / 7.4));
 }
 
 .row {
-  display: grid;
-  gap: 5px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
 }
 
 .tile {
-  width: 100%;
-  aspect-ratio: 1 / 1;
-  border: 2px solid var(--tile-border-empty);
+  width: var(--tile-size);
+  height: var(--tile-size);
+  border: 2.5px solid var(--tile-border-empty);
   display: inline-flex;
   justify-content: center;
   align-items: center;
-  font-size: clamp(18px, 4.5vw, 32px);
+  font-size: calc(var(--tile-size) * 0.54);
   font-weight: 800;
   text-transform: uppercase;
   background-color: var(--tile-bg-empty);
   color: var(--text-color);
   box-sizing: border-box;
   transform-style: preserve-3d;
+  flex-shrink: 0;
 }
 
 .tile[data-state="active"] {
@@ -309,10 +328,10 @@ h1.app-title {
 }
 
 @keyframes shake {
-  10%, 90% { transform: translateX(-1px); }
-  20%, 80% { transform: translateX(2px); }
-  30%, 50%, 70% { transform: translateX(-4px); }
-  40%, 60% { transform: translateX(4px); }
+  10%, 90% { transform: translateX(-2px); }
+  20%, 80% { transform: translateX(3px); }
+  30%, 50%, 70% { transform: translateX(-5px); }
+  40%, 60% { transform: translateX(5px); }
 }
 
 .shake {
@@ -321,9 +340,9 @@ h1.app-title {
 
 @keyframes bounce {
   0%, 20% { transform: translateY(0); }
-  40% { transform: translateY(-24px); }
+  40% { transform: translateY(-28px); }
   50% { transform: translateY(0); }
-  60% { transform: translateY(-12px); }
+  60% { transform: translateY(-14px); }
   80% { transform: translateY(0); }
   100% { transform: translateY(0); }
 }
@@ -335,10 +354,11 @@ h1.app-title {
 /* Keyboard */
 #keyboard {
   width: 100%;
-  padding: 4px 0 8px 0;
+  max-width: 620px;
+  padding: 6px 0 20px 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .keyboard-row {
@@ -346,18 +366,18 @@ h1.app-title {
   width: 100%;
   margin: 0 auto;
   touch-action: manipulation;
-  gap: 4px;
+  gap: 6px;
   justify-content: center;
 }
 
 .key {
   font-family: inherit;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 16px;
   border: 0;
   padding: 0;
-  height: 52px;
-  border-radius: 4px;
+  height: 62px;
+  border-radius: 6px;
   cursor: pointer;
   user-select: none;
   background-color: var(--key-bg);
@@ -376,7 +396,7 @@ h1.app-title {
 
 .key.large {
   flex: 1.5;
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .key[data-state="correct"] {
@@ -405,28 +425,28 @@ h1.app-title {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   pointer-events: none;
 }
 
 .toast {
   background-color: var(--toast-bg);
   color: var(--toast-text);
-  padding: 10px 18px;
-  border-radius: 6px;
+  padding: 12px 22px;
+  border-radius: 8px;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 16px;
   box-shadow: var(--shadow);
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-10px);
   animation: toastFade 2.2s ease forwards;
 }
 
 @keyframes toastFade {
-  0% { opacity: 0; transform: translateY(-8px); }
+  0% { opacity: 0; transform: translateY(-10px); }
   12% { opacity: 1; transform: translateY(0); }
   85% { opacity: 1; transform: translateY(0); }
-  100% { opacity: 0; transform: translateY(-8px); }
+  100% { opacity: 0; transform: translateY(-10px); }
 }
 
 /* Modals */
@@ -451,10 +471,10 @@ h1.app-title {
 .modal {
   background-color: var(--modal-bg);
   border: 1px solid var(--modal-border);
-  border-radius: 12px;
+  border-radius: 16px;
   width: 100%;
-  max-width: 440px;
-  max-height: 85vh;
+  max-width: 520px;
+  max-height: 88vh;
   display: flex;
   flex-direction: column;
   box-shadow: var(--shadow);
@@ -471,40 +491,40 @@ h1.app-title {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
+  padding: 16px 22px;
   border-bottom: 1px solid var(--modal-border);
 }
 
 .modal-header h2 {
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 800;
 }
 
 .modal-body {
-  padding: 16px 18px;
+  padding: 20px 22px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .modal-footer {
-  padding: 12px 18px;
+  padding: 14px 22px;
   border-top: 1px solid var(--modal-border);
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 12px;
 }
 
 /* Form Controls in Modal */
 .form-group {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .form-group label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
@@ -513,10 +533,10 @@ h1.app-title {
 .form-input {
   background-color: var(--pill-bg);
   border: 1px solid var(--tile-border-empty);
-  border-radius: 6px;
-  padding: 8px 12px;
+  border-radius: 8px;
+  padding: 10px 14px;
   color: var(--text-color);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   outline: none;
   letter-spacing: 0.1em;
@@ -531,15 +551,15 @@ h1.app-title {
   background-color: var(--btn-primary-bg);
   color: #ffffff;
   border: none;
-  border-radius: 6px;
-  padding: 8px 14px;
-  font-size: 13px;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   transition: background-color 0.15s ease;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .action-btn:hover {
@@ -558,17 +578,17 @@ h1.app-title {
 /* Result Modal Elements */
 .result-banner {
   text-align: center;
-  padding: 8px 0;
+  padding: 10px 0;
 }
 
 .result-banner h3 {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 800;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .secret-word-reveal {
-  font-size: 14px;
+  font-size: 16px;
   color: var(--text-muted);
 }
 
@@ -580,11 +600,11 @@ h1.app-title {
 
 .emoji-preview {
   background-color: var(--pill-bg);
-  padding: 12px;
-  border-radius: 8px;
+  padding: 16px;
+  border-radius: 10px;
   font-family: monospace;
-  font-size: 16px;
-  line-height: 1.3;
+  font-size: 20px;
+  line-height: 1.35;
   text-align: center;
   white-space: pre-wrap;
   user-select: text;
@@ -595,70 +615,70 @@ h1.app-title {
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 8px;
+  gap: 10px;
   text-align: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
 .stat-box {
   background-color: var(--pill-bg);
-  padding: 10px 4px;
-  border-radius: 8px;
+  padding: 12px 6px;
+  border-radius: 10px;
 }
 
 .stat-number {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 800;
 }
 
 .stat-label {
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text-muted);
   text-transform: uppercase;
-  margin-top: 2px;
+  margin-top: 4px;
 }
 
 .history-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  max-height: 280px;
+  gap: 10px;
+  max-height: 320px;
   overflow-y: auto;
-  padding-right: 4px;
+  padding-right: 6px;
 }
 
 .history-item {
   background-color: var(--pill-bg);
-  border-radius: 8px;
-  padding: 10px 12px;
+  border-radius: 10px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 10px;
 }
 
 .history-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 .history-title {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
 }
 
 .history-sub {
-  font-size: 11px;
+  font-size: 13px;
   color: var(--text-muted);
 }
 
 .history-badge {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
-  padding: 3px 8px;
-  border-radius: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
 }
 
 .history-badge.win {
@@ -674,7 +694,7 @@ h1.app-title {
 /* Custom Link Box */
 .custom-link-box {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
 }
 
@@ -682,9 +702,9 @@ h1.app-title {
   flex-grow: 1;
   background-color: var(--pill-bg);
   border: 1px solid var(--tile-border-empty);
-  border-radius: 6px;
-  padding: 6px 10px;
+  border-radius: 8px;
+  padding: 8px 12px;
   color: var(--text-color);
-  font-size: 12px;
+  font-size: 14px;
   outline: none;
 }

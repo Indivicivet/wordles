@@ -366,13 +366,12 @@
   // --- Board & Keyboard Rendering ---
   function renderBoard() {
     boardEl.innerHTML = "";
-    boardEl.style.gridTemplateRows = `repeat(${maxGuesses}, 1fr)`;
+    boardEl.setAttribute("data-len", wordLength);
 
     for (let r = 0; r < maxGuesses; r++) {
       const rowEl = document.createElement("div");
       rowEl.className = "row";
       rowEl.id = `row-${r}`;
-      rowEl.style.gridTemplateColumns = `repeat(${wordLength}, 1fr)`;
 
       const guess = guesses[r] || (r === guesses.length ? currentGuess : "");
       const isCommitted = r < guesses.length;
